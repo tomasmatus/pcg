@@ -30,7 +30,7 @@ struct Particles
   float* posX;
   float* posY;
   float* posZ;
-  
+
   float* velX;
   float* velY;
   float* velZ;

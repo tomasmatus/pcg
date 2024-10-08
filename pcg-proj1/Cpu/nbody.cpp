@@ -50,6 +50,7 @@ void calculateGravitationVelocity(Particles p, Velocities tmpVel, const unsigned
     float newVelY{};
     float newVelZ{};
 
+    // current particle
     const float posX   = pPosX[i];
     const float posY   = pPosY[i];
     const float posZ   = pPosZ[i];
@@ -58,25 +59,31 @@ void calculateGravitationVelocity(Particles p, Velocities tmpVel, const unsigned
 #   pragma omp simd aligned(pPosX, pPosY, pPosZ, pVelX, pVelY, pVelZ, pWeight, tmpVelX, tmpVelY, tmpVelZ: dataAlignment)
     for (unsigned j = 0u; j < N; ++j)
     {
+      // neighbour particle
       const float otherPosX   = pPosX[j];
       const float otherPosY   = pPosY[j];
       const float otherPosZ   = pPosZ[j];
       const float otherWeight = pWeight[j];
 
+      // distance between particles in each dimension
       const float dx = otherPosX - posX;
       const float dy = otherPosY - posY;
       const float dz = otherPosZ - posZ;
 
+      // distance r between particles in 3D
       const float r2 = dx * dx + dy * dy + dz * dz;
       const float r = std::sqrt(r2) + std::numeric_limits<float>::min();
 
+      // gravity force of the two particles
       const float f = G * weight * otherWeight / r2 + std::numeric_limits<float>::min();
 
+      // SUM(F^(i+1))
       newVelX += (r > COLLISION_DISTANCE) ? dx / r * f : 0.f;
       newVelY += (r > COLLISION_DISTANCE) ? dy / r * f : 0.f;
       newVelZ += (r > COLLISION_DISTANCE) ? dz / r * f : 0.f;
     }
 
+    // velocity gain
     newVelX *= dt / weight;
     newVelY *= dt / weight;
     newVelZ *= dt / weight;

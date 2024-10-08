@@ -34,6 +34,63 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
   /*              TODO: CUDA kernel to calculate gravitation velocity, see reference CPU version                      */
   /********************************************************************************************************************/
 
+  const unsigned threadID = threadIdx.x + blockIdx.x * blockDim.x;
+  if (threadID >= N) {
+    return;
+  }
+
+  const float* pPosX = p.posX;
+  const float* pPosY = p.posY;
+  const float* pPosZ = p.posZ;
+  const float* pweight = p.weight;
+
+  float* const tmpVelX = tmpVel.velX;
+  float* const tmpVelY = tmpVel.velY;
+  float* const tmpVelZ = tmpVel.velZ;
+
+  // tmp velocity
+  float newVelX = 0.0f;
+  float newVelY = 0.0f;
+  float newVelZ = 0.0f;
+
+  // current particle
+  const float posX = pPosX[threadID];
+  const float posY = pPosY[threadID];
+  const float posZ = pPosZ[threadID];
+  const float weight = pweight[threadID];
+
+  for (unsigned i = 0; i < N; i++) {
+    // neighbour partcle
+    const float otherPosX = pPosX[i];
+    const float otherPosY = pPosY[i];
+    const float otherPosZ = pPosZ[i];
+    const float otherWeight = pweight[i];
+
+    // distance between particles in dimensions
+    const float dx = otherPosX - posX;
+    const float dy = otherPosY - posY;
+    const float dz = otherPosZ - posZ;
+
+    // distance r between particles in 3D
+    const float r2 = dx * dx + dy * dy + dz * dz;
+    const float r = std::sqrt(r2) + std::numeric_limits<float>::min();
+
+    // gravity force of the two particles
+    const float f = G * weight * otherWeight / r2 + std::numeric_limits<float>::min();
+
+    // SUM(F^(i+1))
+    newVelX += (r > COLLISION_DISTANCE) ? dx / r * f : 0.f;
+    newVelY += (r > COLLISION_DISTANCE) ? dy / r * f : 0.f;
+    newVelZ += (r > COLLISION_DISTANCE) ? dz / r * f : 0.f;
+  }
+
+  newVelX *= dt / weight;
+  newVelY *= dt / weight;
+  newVelZ *= dt / weight;
+
+  tmpVelX[threadID] = newVelX;
+  tmpVelY[threadID] = newVelY;
+  tmpVelZ[threadID] = newVelZ;
 
 }// end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
