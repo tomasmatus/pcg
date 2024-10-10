@@ -137,29 +137,29 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
 
-  CUDA_CALL(cudaMalloc(&dParticles.posX, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dParticles.posY, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dParticles.posZ, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dParticles.velX, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dParticles.velY, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dParticles.velZ, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dParticles.weight, N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.posX), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.posY), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.posZ), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.velX), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.velY), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.velZ), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dParticles.weight), N * sizeof(float)));
 
-  CUDA_CALL(cudaMalloc(&dTmpVelocities.velX, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dTmpVelocities.velY, N * sizeof(float)));
-  CUDA_CALL(cudaMalloc(&dTmpVelocities.velZ, N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dTmpVelocities.velX), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dTmpVelocities.velY), N * sizeof(float)));
+  CUDA_CALL(cudaMalloc(&(dTmpVelocities.velZ), N * sizeof(float)));
 
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
   CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.posX, N * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.posY, N * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.posZ, N * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.velX, N * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.velY, N * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.velZ, N * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.weight, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.posY, hParticles.posY, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.posZ, hParticles.posZ, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.velX, hParticles.velX, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.velY, hParticles.velY, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.velZ, hParticles.velZ, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.weight, hParticles.weight, N * sizeof(float), cudaMemcpyHostToDevice));
 
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
@@ -169,10 +169,6 @@ int main(int argc, char **argv)
     /******************************************************************************************************************/
     /*                                     TODO: GPU kernels invocation                                               */
     /******************************************************************************************************************/
-
-    CUDA_CALL(cudaMemset(dTmpVelocities.velX, 0, N * sizeof(float)));
-    CUDA_CALL(cudaMemset(dTmpVelocities.velY, 0, N * sizeof(float)));
-    CUDA_CALL(cudaMemset(dTmpVelocities.velZ, 0, N * sizeof(float)));
 
     calculateGravitationVelocity<<<simGridDim, simBlockDim>>>(dParticles, dTmpVelocities, N, dt);
     calculateCollisionVelocity<<<simGridDim, simBlockDim>>>(dParticles, dTmpVelocities, N, dt);
@@ -195,12 +191,12 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
 
   CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.posX, N * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.posY, N * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.posZ, N * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.velX, N * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.velY, N * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.weight, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles.posY, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles.posZ, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles.velX, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles.velY, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles.velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles.weight, N * sizeof(float), cudaMemcpyDeviceToHost));
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
