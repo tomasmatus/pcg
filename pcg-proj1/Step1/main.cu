@@ -1,10 +1,10 @@
 /**
  * @file      main.cu
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
@@ -88,7 +88,13 @@ int main(int argc, char **argv)
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
 
-
+  hParticles.posX = new float[N];
+  hParticles.posY = new float[N];
+  hParticles.posZ = new float[N];
+  hParticles.velX = new float[N];
+  hParticles.velY = new float[N];
+  hParticles.velZ = new float[N];
+  hParticles.weight = new float[N];
 
   /********************************************************************************************************************/
   /*                              TODO: Fill memory descriptor layout                                                 */
@@ -100,13 +106,13 @@ int main(int argc, char **argv)
    *       Data pointer       consecutive elements        element in FLOATS,
    *                          in FLOATS, not bytes            not bytes
   */
-  MemDesc md(nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
+  MemDesc md(hParticles.posX,                 1,                          0,
+             hParticles.posY,                 1,                          0,
+             hParticles.posZ,                 1,                          0,
+             hParticles.velX,                 1,                          0,
+             hParticles.velY,                 1,                          0,
+             hParticles.velZ,                 1,                          0,
+             hParticles.weight,                 1,                          0,
              N,
              recordsCount);
 
@@ -129,15 +135,45 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
+  unsigned long bytesSize = N * sizeof(float);
 
-  
+  CUDA_CALL(cudaMalloc(&(dParticles[0].posX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].posY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].posZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].velX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].velY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].velZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].weight), bytesSize));
+
+  CUDA_CALL(cudaMalloc(&(dParticles[1].posX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].posY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].posZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].velX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].velY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].velZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].weight), bytesSize));
 
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaMemcpy(dParticles[0].posX, hParticles.posX, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].posY, hParticles.posY, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].posZ, hParticles.posZ, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].velX, hParticles.velX, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].velY, hParticles.velY, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].velZ, hParticles.velZ, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].weight, hParticles.weight, bytesSize, cudaMemcpyHostToDevice));
 
-  
+  CUDA_CALL(cudaMemcpy(dParticles[1].posX, hParticles.posX, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[1].posY, hParticles.posY, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[1].posZ, hParticles.posZ, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[1].velX, hParticles.velX, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[1].velY, hParticles.velY, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[1].velZ, hParticles.velZ, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[1].weight, hParticles.weight, bytesSize, cudaMemcpyHostToDevice));
+
+
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
 
@@ -150,7 +186,7 @@ int main(int argc, char **argv)
     /*                                     TODO: GPU kernel invocation                                                */
     /******************************************************************************************************************/
 
-
+    calculateVelocity<<<simGridDim, simBlockDim>>>(dParticles[srcIdx], dParticles[dstIdx], N, dt);
   }
 
   // Wait for all CUDA kernels to finish
@@ -169,7 +205,13 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
 
-
+  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles[resIdx].posX, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles[resIdx].posY, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles[resIdx].posZ, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles[resIdx].velX, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles[resIdx].velY, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles[resIdx].velZ, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles[resIdx].weight, bytesSize, cudaMemcpyDeviceToHost));
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
@@ -190,12 +232,33 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-  
+  CUDA_CALL(cudaFree(dParticles[0].posX));
+  CUDA_CALL(cudaFree(dParticles[0].posY));
+  CUDA_CALL(cudaFree(dParticles[0].posZ));
+  CUDA_CALL(cudaFree(dParticles[0].velX));
+  CUDA_CALL(cudaFree(dParticles[0].velY));
+  CUDA_CALL(cudaFree(dParticles[0].velZ));
+  CUDA_CALL(cudaFree(dParticles[0].weight));
+
+  CUDA_CALL(cudaFree(dParticles[1].posX));
+  CUDA_CALL(cudaFree(dParticles[1].posY));
+  CUDA_CALL(cudaFree(dParticles[1].posZ));
+  CUDA_CALL(cudaFree(dParticles[1].velX));
+  CUDA_CALL(cudaFree(dParticles[1].velY));
+  CUDA_CALL(cudaFree(dParticles[1].velZ));
+  CUDA_CALL(cudaFree(dParticles[1].weight));
 
   /********************************************************************************************************************/
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
+  delete[] hParticles.posX;
+  delete[] hParticles.posY;
+  delete[] hParticles.posZ;
+  delete[] hParticles.velX;
+  delete[] hParticles.velY;
+  delete[] hParticles.velZ;
+  delete[] hParticles.weight;
 
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------

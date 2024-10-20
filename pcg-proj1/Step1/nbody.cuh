@@ -1,10 +1,10 @@
 /**
  * @file      nbody.cuh
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
@@ -29,7 +29,15 @@ struct Particles
   /*                             TODO: Particle data structure optimized for use on GPU                               */
   /********************************************************************************************************************/
 
+  float* posX;
+  float* posY;
+  float* posZ;
 
+  float* velX;
+  float* velY;
+  float* velZ;
+
+  float* weight;
 };
 
 /**
