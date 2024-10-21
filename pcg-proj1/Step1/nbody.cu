@@ -99,7 +99,6 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
     newGravitationVelY += (r > COLLISION_DISTANCE) ? dy / r * f : 0.f;
     newGravitationVelZ += (r > COLLISION_DISTANCE) ? dz / r * f : 0.f;
 
-    // TODO this might need to go to a stand alone for loop after newVelx *= dt / weight stuff
     newCollisionVelX += (r > 0.f && r < COLLISION_DISTANCE)
                 ? (((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX)
                 : 0.f;
@@ -111,6 +110,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
                 : 0.f;
   }
 
+  // Final results from the first kernel in step0
   newGravitationVelX *= dt / weight;
   newGravitationVelY *= dt / weight;
   newGravitationVelZ *= dt / weight;
@@ -119,9 +119,9 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
   const float nextStepVelY = velY + newGravitationVelY + newCollisionVelY;
   const float nextStepVelZ = velZ + newGravitationVelZ + newCollisionVelZ;
 
-  pOutPosX[threadID] += nextStepVelX * dt;
-  pOutPosY[threadID] += nextStepVelY * dt;
-  pOutPosZ[threadID] += nextStepVelZ * dt;
+  pOutPosX[threadID] = posX + nextStepVelX * dt;
+  pOutPosY[threadID] = posY + nextStepVelY * dt;
+  pOutPosZ[threadID] = posZ + nextStepVelZ * dt;
 
   pOutVelX[threadID] = nextStepVelX;
   pOutVelY[threadID] = nextStepVelY;
