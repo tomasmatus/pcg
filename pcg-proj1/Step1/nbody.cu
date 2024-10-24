@@ -95,19 +95,23 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
     const float f = G * weight * otherWeight / r2 + __FLT_MIN__;
 
     // SUM(F^(i+1))
-    newGravitationVelX += (r > COLLISION_DISTANCE) ? dx / r * f : 0.f;
-    newGravitationVelY += (r > COLLISION_DISTANCE) ? dy / r * f : 0.f;
-    newGravitationVelZ += (r > COLLISION_DISTANCE) ? dz / r * f : 0.f;
+    if (r > COLLISION_DISTANCE) {
+      newGravitationVelX += dx / r * f;
+      newGravitationVelY += dy / r * f;
+      newGravitationVelZ += dz / r * f;
+    } else {
+      const bool isColliding = r > 0.0f;
 
-    newCollisionVelX += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX)
-                : 0.f;
-    newCollisionVelY += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velY - otherWeight * velY + 2.f * otherWeight * otherVelY) / (weight + otherWeight)) - velY)
-                : 0.f;
-    newCollisionVelZ += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velZ - otherWeight * velZ + 2.f * otherWeight * otherVelZ) / (weight + otherWeight)) - velZ)
-                : 0.f;
+      newCollisionVelX += (isColliding)
+                  ? (((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX)
+                  : 0.f;
+      newCollisionVelY += (isColliding)
+                  ? (((weight * velY - otherWeight * velY + 2.f * otherWeight * otherVelY) / (weight + otherWeight)) - velY)
+                  : 0.f;
+      newCollisionVelZ += (isColliding)
+                  ? (((weight * velZ - otherWeight * velZ + 2.f * otherWeight * otherVelZ) / (weight + otherWeight)) - velZ)
+                  : 0.f;
+    }
   }
 
   // Final results from the first kernel in step0
