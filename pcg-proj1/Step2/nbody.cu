@@ -35,98 +35,106 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
   /********************************************************************************************************************/
   extern __shared__ float sharedMem[];
 
+  float* const sharedPosX = sharedMem;
+  float* const sharedPosY = sharedMem + blockDim.x;
+  float* const sharedPosZ = sharedMem + 2 * blockDim.x;
+  float* const sharedVelX = sharedMem + 3 * blockDim.x;
+  float* const sharedVelY = sharedMem + 4 * blockDim.x;
+  float* const sharedVelZ = sharedMem + 5 * blockDim.x;
+  float* const sharedWeight = sharedMem + 6 * blockDim.x;
+
   const unsigned threadID = threadIdx.x + blockIdx.x * blockDim.x;
-  if (threadID >= N) {
-    return;
-  }
-
-  float* const pPosX = pIn.posX;
-  float* const pPosY = pIn.posY;
-  float* const pPosZ = pIn.posZ;
-  float* const pVelX = pIn.velX;
-  float* const pVelY = pIn.velY;
-  float* const pVelZ = pIn.velZ;
-  float* const pweight = pIn.weight;
-
-  float* const pOutPosX = pOut.posX;
-  float* const pOutPosY = pOut.posY;
-  float* const pOutPosZ = pOut.posZ;
-  float* const pOutVelX = pOut.velX;
-  float* const pOutVelY = pOut.velY;
-  float* const pOutVelZ = pOut.velZ;
 
   // tmp velocity
   float newGravitationVelX{};
   float newGravitationVelY{};
   float newGravitationVelZ{};
-
   float newCollisionVelX{};
   float newCollisionVelY{};
   float newCollisionVelZ{};
 
-  // current particle
-  const float posX = pPosX[threadID];
-  const float posY = pPosY[threadID];
-  const float posZ = pPosZ[threadID];
-  const float velX = pVelX[threadID];
-  const float velY = pVelY[threadID];
-  const float velZ = pVelZ[threadID];
-  const float weight = pweight[threadID];
+  unsigned tileCount = ceil((float)N / blockDim.x);
+  // current point
+  const bool bound = threadID < N;
+  const float posX = (bound) ? pIn.posX[threadID] : 0.0f;
+  const float posY = (bound) ? pIn.posY[threadID] : 0.0f;
+  const float posZ = (bound) ? pIn.posZ[threadID] : 0.0f;
+  const float velX = (bound) ? pIn.velX[threadID] : 0.0f;
+  const float velY = (bound) ? pIn.velY[threadID] : 0.0f;
+  const float velZ = (bound) ? pIn.velZ[threadID] : 0.0f;
+  const float weight = (bound) ? pIn.weight[threadID] : 0.0f;
 
-  for (unsigned j = 0u; j < N; j++) {
-    // neighbour partcle
-    const float otherPosX = pPosX[j];
-    const float otherPosY = pPosY[j];
-    const float otherPosZ = pPosZ[j];
-    const float otherVelX = pVelX[j];
-    const float otherVelY = pVelY[j];
-    const float otherVelZ = pVelZ[j];
-    const float otherWeight = pweight[j];
+  for (unsigned i = 0; i < tileCount; i++) {
+    unsigned tileOffset = i * blockDim.x;
+    unsigned threadOffset = tileOffset + threadIdx.x;
 
-    // distance between particles in dimensions
-    const float dx = otherPosX - posX;
-    const float dy = otherPosY - posY;
-    const float dz = otherPosZ - posZ;
+    // load data to shared memory
+    const bool tileBound = threadOffset < N;
+    sharedPosX[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedPosY[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedPosZ[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedVelX[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedVelY[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedVelZ[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedWeight[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
 
-    // distance r between particles in 3D
-    const float r2 = dx * dx + dy * dy + dz * dz;
-    const float r = std::sqrt(r2) + __FLT_MIN__;
+    __syncthreads();
 
-    // gravity force of the two particles
-    const float f = G * weight * otherWeight / r2 + __FLT_MIN__;
+    // loop over all points in the tile
+    for (unsigned j = 0u; j < blockDim.x; j++) {
+      // distance between particles in dimensions
+      const float dx = sharedPosX[j] - posX;
+      const float dy = sharedPosY[j] - posY;
+      const float dz = sharedPosZ[j] - posZ;
 
-    // SUM(F^(i+1))
-    newGravitationVelX += (r > COLLISION_DISTANCE) ? dx / r * f : 0.f;
-    newGravitationVelY += (r > COLLISION_DISTANCE) ? dy / r * f : 0.f;
-    newGravitationVelZ += (r > COLLISION_DISTANCE) ? dz / r * f : 0.f;
+      // distance r between particles in 3D
+      const float r2 = dx * dx + dy * dy + dz * dz;
+      const float r = std::sqrt(r2) + __FLT_MIN__;
 
-    newCollisionVelX += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX)
-                : 0.f;
-    newCollisionVelY += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velY - otherWeight * velY + 2.f * otherWeight * otherVelY) / (weight + otherWeight)) - velY)
-                : 0.f;
-    newCollisionVelZ += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velZ - otherWeight * velZ + 2.f * otherWeight * otherVelZ) / (weight + otherWeight)) - velZ)
-                : 0.f;
+      // gravity force of the two particles
+      const float f = G * weight * sharedWeight[j] / r2 + __FLT_MIN__;
+
+      // SUM(F^(i+1))
+      if (r > COLLISION_DISTANCE) {
+        newGravitationVelX += dx / r * f;
+        newGravitationVelY += dy / r * f;
+        newGravitationVelZ += dz / r * f;
+      } else {
+        const bool isColliding = r > 0.0f;
+        newCollisionVelX += (isColliding)
+                    ? (((weight * velX - sharedWeight[j] * velX + 2.f * sharedWeight[j] * sharedVelX[j]) / (weight + sharedWeight[j])) - velX)
+                    : 0.f;
+        newCollisionVelY += (isColliding)
+                    ? (((weight * velY - sharedWeight[j] * velY + 2.f * sharedWeight[j] * sharedVelY[j]) / (weight + sharedWeight[j])) - velY)
+                    : 0.f;
+        newCollisionVelZ += (isColliding)
+                    ? (((weight * velZ - sharedWeight[j] * velZ + 2.f * sharedWeight[j] * sharedVelY[j]) / (weight + sharedWeight[j])) - velZ)
+                    : 0.f;
+      }
+
+    }
+
+    __syncthreads();
   }
 
   // Final results from the first kernel in step0
-  newGravitationVelX *= dt / weight;
-  newGravitationVelY *= dt / weight;
-  newGravitationVelZ *= dt / weight;
+  if (bound) {
+    newGravitationVelX *= dt / weight;
+    newGravitationVelY *= dt / weight;
+    newGravitationVelZ *= dt / weight;
 
-  const float nextStepVelX = velX + newGravitationVelX + newCollisionVelX;
-  const float nextStepVelY = velY + newGravitationVelY + newCollisionVelY;
-  const float nextStepVelZ = velZ + newGravitationVelZ + newCollisionVelZ;
+    const float nextStepVelX = velX + newGravitationVelX + newCollisionVelX;
+    const float nextStepVelY = velY + newGravitationVelY + newCollisionVelY;
+    const float nextStepVelZ = velZ + newGravitationVelZ + newCollisionVelZ;
 
-  pOutPosX[threadID] = posX + nextStepVelX * dt;
-  pOutPosY[threadID] = posY + nextStepVelY * dt;
-  pOutPosZ[threadID] = posZ + nextStepVelZ * dt;
+    pOut.posX[threadID] = posX + nextStepVelX * dt;
+    pOut.posY[threadID] = posY + nextStepVelY * dt;
+    pOut.posZ[threadID] = posZ + nextStepVelZ * dt;
 
-  pOutVelX[threadID] = nextStepVelX;
-  pOutVelY[threadID] = nextStepVelY;
-  pOutVelZ[threadID] = nextStepVelZ;
+    pOut.velX[threadID] = nextStepVelX;
+    pOut.velY[threadID] = nextStepVelY;
+    pOut.velZ[threadID] = nextStepVelZ;
+  }
 }// end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
 
