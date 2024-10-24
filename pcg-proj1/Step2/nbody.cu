@@ -35,6 +35,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
   /********************************************************************************************************************/
   extern __shared__ float sharedMem[];
 
+  // shared mem vectors
   float* const sharedPosX = sharedMem;
   float* const sharedPosY = sharedMem + blockDim.x;
   float* const sharedPosZ = sharedMem + 2 * blockDim.x;
@@ -53,7 +54,6 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
   float newCollisionVelY{};
   float newCollisionVelZ{};
 
-  unsigned tileCount = ceil((float)N / blockDim.x);
   // current point
   const bool bound = threadID < N;
   const float posX = (bound) ? pIn.posX[threadID] : 0.0f;
@@ -64,6 +64,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
   const float velZ = (bound) ? pIn.velZ[threadID] : 0.0f;
   const float weight = (bound) ? pIn.weight[threadID] : 0.0f;
 
+  unsigned tileCount = ceil((float)N / blockDim.x);
   for (unsigned i = 0; i < tileCount; i++) {
     unsigned tileOffset = i * blockDim.x;
     unsigned threadOffset = tileOffset + threadIdx.x;
@@ -89,7 +90,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
 
       // distance r between particles in 3D
       const float r2 = dx * dx + dy * dy + dz * dz;
-      const float r = std::sqrt(r2) + __FLT_MIN__;
+      const float r = sqrt(r2) + __FLT_MIN__;
 
       // gravity force of the two particles
       const float f = G * weight * sharedWeight[j] / r2 + __FLT_MIN__;
