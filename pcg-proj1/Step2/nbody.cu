@@ -72,12 +72,12 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
     // load data to shared memory
     const bool tileBound = threadOffset < N;
     sharedPosX[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
-    sharedPosY[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
-    sharedPosZ[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
-    sharedVelX[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
-    sharedVelY[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
-    sharedVelZ[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
-    sharedWeight[threadIdx.x] = (tileBound) ? pIn.posX[threadOffset] : 0.0f;
+    sharedPosY[threadIdx.x] = (tileBound) ? pIn.posY[threadOffset] : 0.0f;
+    sharedPosZ[threadIdx.x] = (tileBound) ? pIn.posZ[threadOffset] : 0.0f;
+    sharedVelX[threadIdx.x] = (tileBound) ? pIn.velX[threadOffset] : 0.0f;
+    sharedVelY[threadIdx.x] = (tileBound) ? pIn.velY[threadOffset] : 0.0f;
+    sharedVelZ[threadIdx.x] = (tileBound) ? pIn.velZ[threadOffset] : 0.0f;
+    sharedWeight[threadIdx.x] = (tileBound) ? pIn.weight[threadOffset] : 0.0f;
 
     __syncthreads();
 
@@ -90,7 +90,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
 
       // distance r between particles in 3D
       const float r2 = dx * dx + dy * dy + dz * dz;
-      const float r = sqrt(r2) + __FLT_MIN__;
+      const float r = sqrt(r2);
 
       // gravity force of the two particles
       const float f = G * weight * sharedWeight[j] / r2 + __FLT_MIN__;
@@ -109,7 +109,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
                     ? (((weight * velY - sharedWeight[j] * velY + 2.f * sharedWeight[j] * sharedVelY[j]) / (weight + sharedWeight[j])) - velY)
                     : 0.f;
         newCollisionVelZ += (isColliding)
-                    ? (((weight * velZ - sharedWeight[j] * velZ + 2.f * sharedWeight[j] * sharedVelY[j]) / (weight + sharedWeight[j])) - velZ)
+                    ? (((weight * velZ - sharedWeight[j] * velZ + 2.f * sharedWeight[j] * sharedVelZ[j]) / (weight + sharedWeight[j])) - velZ)
                     : 0.f;
       }
 
