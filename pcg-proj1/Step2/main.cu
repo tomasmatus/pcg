@@ -88,13 +88,14 @@ int main(int argc, char **argv)
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
 
-  hParticles.posX = new float[N];
-  hParticles.posY = new float[N];
-  hParticles.posZ = new float[N];
-  hParticles.velX = new float[N];
-  hParticles.velY = new float[N];
-  hParticles.velZ = new float[N];
-  hParticles.weight = new float[N];
+  constexpr std::size_t dataAlignment{64};
+  hParticles.posX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.posY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.posZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.velX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.velY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.velZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.weight = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
 
   /********************************************************************************************************************/
   /*                              TODO: Fill memory descriptor layout                                                 */
@@ -258,13 +259,12 @@ int main(int argc, char **argv)
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-  delete[] hParticles.posX;
-  delete[] hParticles.posY;
-  delete[] hParticles.posZ;
-  delete[] hParticles.velX;
-  delete[] hParticles.velY;
-  delete[] hParticles.velZ;
-  delete[] hParticles.weight;
-
+  operator delete[](hParticles.posX,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.posY,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.posZ,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.velX,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.velY,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.velZ,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.weight, std::align_val_t{dataAlignment});
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------
