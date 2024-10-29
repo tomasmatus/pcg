@@ -89,7 +89,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
 
     // distance r between particles in 3D
     const float r2 = dx * dx + dy * dy + dz * dz;
-    const float r = std::sqrt(r2) + __FLT_MIN__;
+    const float r = sqrt(r2);
 
     // gravity force of the two particles
     const float f = G * weight * otherWeight / r2 + __FLT_MIN__;

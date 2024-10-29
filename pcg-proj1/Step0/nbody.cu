@@ -73,7 +73,7 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
 
     // distance r between particles in 3D
     const float r2 = dx * dx + dy * dy + dz * dz;
-    const float r = std::sqrt(r2) + __FLT_MIN__;
+    const float r = sqrt(r2);
 
     // gravity force of the two particles
     const float f = G * weight * otherWeight / r2 + __FLT_MIN__;
@@ -156,7 +156,7 @@ __global__ void calculateCollisionVelocity(Particles p, Velocities tmpVel, const
 
     // distance r between particles in 3D
     const float r2 = dx * dx + dy * dy + dz * dz;
-    const float r = std::sqrt(r2);
+    const float r = sqrt(r2);
 
     newVelX += (r > 0.f && r < COLLISION_DISTANCE)
                 ? (((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX)
