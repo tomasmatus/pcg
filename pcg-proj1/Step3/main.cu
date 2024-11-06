@@ -89,6 +89,14 @@ int main(int argc, char **argv)
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
 
+  constexpr std::size_t dataAlignment{64};
+  hParticles.posX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.posY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.posZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.velX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.velY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.velZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  hParticles.weight = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
 
 
   /********************************************************************************************************************/
@@ -101,13 +109,13 @@ int main(int argc, char **argv)
    *       Data pointer       consecutive elements        element in FLOATS,
    *                          in FLOATS, not bytes            not bytes
   */
-  MemDesc md(nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
+  MemDesc md(hParticles.posX,                 1,                          0,
+             hParticles.posY,                 1,                          0,
+             hParticles.posZ,                 1,                          0,
+             hParticles.velX,                 1,                          0,
+             hParticles.velY,                 1,                          0,
+             hParticles.velZ,                 1,                          0,
+             hParticles.weight,                 1,                          0,
              N,
              recordsCount);
 
@@ -133,7 +141,7 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
 
-  
+
 
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
@@ -222,12 +230,19 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-  
+
 
   /********************************************************************************************************************/
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
+  operator delete[](hParticles.posX,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.posY,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.posZ,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.velX,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.velY,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.velZ,   std::align_val_t{dataAlignment});
+  operator delete[](hParticles.weight, std::align_val_t{dataAlignment});
 
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------
