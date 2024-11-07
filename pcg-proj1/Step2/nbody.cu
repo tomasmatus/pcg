@@ -66,8 +66,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
 
   unsigned tileCount = ceil((float)N / blockDim.x);
   for (unsigned i = 0; i < tileCount; i++) {
-    unsigned tileOffset = i * blockDim.x;
-    unsigned threadOffset = tileOffset + threadIdx.x;
+    unsigned threadOffset = i * blockDim.x + threadIdx.x;
 
     // load data to shared memory
     const bool tileBound = threadOffset < N;

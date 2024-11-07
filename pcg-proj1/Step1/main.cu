@@ -88,14 +88,15 @@ int main(int argc, char **argv)
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
 
-  constexpr std::size_t dataAlignment{64};
-  hParticles.posX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.posY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.posZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.velX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.velY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.velZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.weight = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  unsigned long bytesSize = N * sizeof(float);
+
+  CUDA_CALL(cudaHostAlloc(&(hParticles.posX), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.posY), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.posZ), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.velX), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.velY), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.velZ), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.weight), bytesSize, cudaHostAllocDefault));
 
   /********************************************************************************************************************/
   /*                              TODO: Fill memory descriptor layout                                                 */
@@ -136,7 +137,6 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
-  unsigned long bytesSize = N * sizeof(float);
 
   CUDA_CALL(cudaMalloc(&(dParticles[0].posX), bytesSize));
   CUDA_CALL(cudaMalloc(&(dParticles[0].posY), bytesSize));
@@ -253,13 +253,13 @@ int main(int argc, char **argv)
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-  operator delete[](hParticles.posX,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.posY,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.posZ,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.velX,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.velY,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.velZ,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.weight, std::align_val_t{dataAlignment});
+  CUDA_CALL(cudaFreeHost(hParticles.posX));
+  CUDA_CALL(cudaFreeHost(hParticles.posY));
+  CUDA_CALL(cudaFreeHost(hParticles.posZ));
+  CUDA_CALL(cudaFreeHost(hParticles.velX));
+  CUDA_CALL(cudaFreeHost(hParticles.velY));
+  CUDA_CALL(cudaFreeHost(hParticles.velZ));
+  CUDA_CALL(cudaFreeHost(hParticles.weight));
 
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------
