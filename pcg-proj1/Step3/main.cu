@@ -89,15 +89,17 @@ int main(int argc, char **argv)
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
 
-  constexpr std::size_t dataAlignment{64};
-  hParticles.posX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.posY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.posZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.velX   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.velY   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.velZ   = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
-  hParticles.weight = static_cast<float*>(operator new[](N * sizeof(float), std::align_val_t{dataAlignment}));
+  unsigned long bytesSize = N * sizeof(float);
 
+  CUDA_CALL(cudaHostAlloc(&(hParticles.posX), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.posY), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.posZ), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.velX), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.velY), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.velZ), bytesSize, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&(hParticles.weight), bytesSize, cudaHostAllocDefault));
+
+  CUDA_CALL(cudaHostAlloc(&hCenterOfMass, sizeof(float4), cudaHostAllocDefault));
 
   /********************************************************************************************************************/
   /*                              TODO: Fill memory descriptor layout                                                 */
@@ -141,18 +143,43 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaMalloc(&(dParticles[0].posX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].posY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].posZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].velX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].velY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].velZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[0].weight), bytesSize));
 
+  CUDA_CALL(cudaMalloc(&(dParticles[1].posX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].posY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].posZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].velX), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].velY), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].velZ), bytesSize));
+  CUDA_CALL(cudaMalloc(&(dParticles[1].weight), bytesSize));
+
+  CUDA_CALL(cudaMalloc(&dCenterOfMass, sizeof(float4)));
+  CUDA_CALL(cudaMalloc(&dLock, sizeof(int)));
 
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
-
+  CUDA_CALL(cudaMemcpy(dParticles[0].posX, hParticles.posX, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].posY, hParticles.posY, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].posZ, hParticles.posZ, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].velX, hParticles.velX, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].velY, hParticles.velY, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].velZ, hParticles.velZ, bytesSize, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles[0].weight, hParticles.weight, bytesSize, cudaMemcpyHostToDevice));
 
   /********************************************************************************************************************/
   /*                                     TODO: Clear GPU center of mass                                               */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
+  CUDA_CALL(cudaMemset(dLock, 0, N * sizeof(int)));
 
 
   // Get CUDA device warp size
@@ -165,8 +192,8 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                  TODO: Set dynamic shared memory computation                                     */
   /********************************************************************************************************************/
-  const std::size_t sharedMemSize    = 0;
-  const std::size_t redSharedMemSize = 0;   // you can use warpSize variable
+  const std::size_t sharedMemSize = simBlockDim * sizeof(float) * 7;
+  const std::size_t redSharedMemSize = redBlockDim * sizeof(float4);   // you can use warpSize variable
 
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
@@ -180,7 +207,8 @@ int main(int argc, char **argv)
     /*                   TODO: GPU kernel invocation with correctly set dynamic memory size                           */
     /******************************************************************************************************************/
 
-
+    calculateVelocity<<<simGridDim, simBlockDim,
+                        sharedMemSize>>>(dParticles[srcIdx], dParticles[dstIdx], N, dt);
   }
 
   const unsigned resIdx = steps % 2;    // result particles index
@@ -189,7 +217,8 @@ int main(int argc, char **argv)
   /*                                 TODO: Invocation of center of mass kernel                                        */
   /********************************************************************************************************************/
 
-
+  centerOfMass<<<redGridDim, redBlockDim,
+                        redSharedMemSize>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // Wait for all CUDA kernels to finish
   CUDA_CALL(cudaDeviceSynchronize());
@@ -230,19 +259,33 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaFree(dParticles[0].posX));
+  CUDA_CALL(cudaFree(dParticles[0].posY));
+  CUDA_CALL(cudaFree(dParticles[0].posZ));
+  CUDA_CALL(cudaFree(dParticles[0].velX));
+  CUDA_CALL(cudaFree(dParticles[0].velY));
+  CUDA_CALL(cudaFree(dParticles[0].velZ));
+  CUDA_CALL(cudaFree(dParticles[0].weight));
 
+  CUDA_CALL(cudaFree(dParticles[1].posX));
+  CUDA_CALL(cudaFree(dParticles[1].posY));
+  CUDA_CALL(cudaFree(dParticles[1].posZ));
+  CUDA_CALL(cudaFree(dParticles[1].velX));
+  CUDA_CALL(cudaFree(dParticles[1].velY));
+  CUDA_CALL(cudaFree(dParticles[1].velZ));
+  CUDA_CALL(cudaFree(dParticles[1].weight));
 
   /********************************************************************************************************************/
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-  operator delete[](hParticles.posX,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.posY,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.posZ,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.velX,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.velY,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.velZ,   std::align_val_t{dataAlignment});
-  operator delete[](hParticles.weight, std::align_val_t{dataAlignment});
+  CUDA_CALL(cudaFreeHost(hParticles.posX));
+  CUDA_CALL(cudaFreeHost(hParticles.posY));
+  CUDA_CALL(cudaFreeHost(hParticles.posZ));
+  CUDA_CALL(cudaFreeHost(hParticles.velX));
+  CUDA_CALL(cudaFreeHost(hParticles.velY));
+  CUDA_CALL(cudaFreeHost(hParticles.velZ));
+  CUDA_CALL(cudaFreeHost(hParticles.weight));
 
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------
