@@ -1,10 +1,10 @@
 /**
  * @file      nbody.cu
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
@@ -165,7 +165,7 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
     const float4 pos = {p.posX[i], p.posY[i], p.posZ[i], p.weight[i]};
 
     const float newWeight = ((pos.w + threadCom.w) > 0.0f)
-      ? (pos.w / pos.w + threadCom.w)
+      ? (pos.w / (pos.w + threadCom.w))
       : 0.0f;
 
     const float4 d = {
@@ -176,9 +176,9 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
     };
 
     threadCom.x += d.x * d.w;
-    threadCom.y += d.y * d.x;
-    threadCom.z += d.z * d.x;
-    threadCom.w += newWeight;
+    threadCom.y += d.y * d.w;
+    threadCom.z += d.z * d.w;
+    threadCom.w += pos.w;
   }
 
   sharedCom[tx] = threadCom;
@@ -186,13 +186,14 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
   // sync after loading starting com values into shared memory
   __syncthreads();
 
-  for (unsigned stride = blockDim.x / 2; stride > 0; stride >>= 1ul) {
+  // reduction in shared memory
+  for (unsigned stride = blockDim.x / 2; stride >= 1; stride /= 2) {
     if (tx < stride) {
       float4 com1 = sharedCom[tx];
       const float4 com2 = sharedCom[tx + stride];
 
       const float newWeight = ((com2.w + com1.w) > 0.0f)
-        ? (com2.w / com2.w + com1.w)
+        ? (com2.w / (com2.w + com1.w))
         : 0.0f;
 
       const float4 d = {
@@ -205,7 +206,7 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
       com1.x += d.x * d.w;
       com1.y += d.y * d.w;
       com1.z += d.z * d.w;
-      com1.w += newWeight;
+      com1.w += com2.w;
 
       sharedCom[tx] = com1;
     }
@@ -213,6 +214,7 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
     __syncthreads();
   }
 
+  // reduce each block into global final value
   if (tx == 0) {
     // try to lock
     while (atomicExch(lock, 1) == 1) {
@@ -222,7 +224,7 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
     const float4 pos = sharedCom[0];
 
     const float newWeight = ((pos.w + com->w) > 0.0f)
-      ? (pos.w / pos.w + com->w)
+      ? (pos.w / (pos.w + com->w))
       : 0.0f;
 
     const float4 d = {
@@ -233,9 +235,9 @@ __global__ void centerOfMass(Particles p, float4* com, int* lock, const unsigned
     };
 
     com->x += d.x * d.w;
-    com->y += d.y * d.x;
-    com->z += d.z * d.x;
-    com->w += newWeight;
+    com->y += d.y * d.w;
+    com->z += d.z * d.w;
+    com->w += pos.w;
 
     // unlock
     atomicExch(lock, 0);

@@ -1,10 +1,10 @@
 /**
  * @file      main.cu
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
@@ -143,21 +143,15 @@ int main(int argc, char **argv)
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
 
-  CUDA_CALL(cudaMalloc(&(dParticles[0].posX), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[0].posY), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[0].posZ), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[0].velX), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[0].velY), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[0].velZ), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[0].weight), bytesSize));
-
-  CUDA_CALL(cudaMalloc(&(dParticles[1].posX), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[1].posY), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[1].posZ), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[1].velX), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[1].velY), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[1].velZ), bytesSize));
-  CUDA_CALL(cudaMalloc(&(dParticles[1].weight), bytesSize));
+  for (unsigned i = 0; i < 2; i++) {
+    CUDA_CALL(cudaMalloc(&(dParticles[i].posX), bytesSize));
+    CUDA_CALL(cudaMalloc(&(dParticles[i].posY), bytesSize));
+    CUDA_CALL(cudaMalloc(&(dParticles[i].posZ), bytesSize));
+    CUDA_CALL(cudaMalloc(&(dParticles[i].velX), bytesSize));
+    CUDA_CALL(cudaMalloc(&(dParticles[i].velY), bytesSize));
+    CUDA_CALL(cudaMalloc(&(dParticles[i].velZ), bytesSize));
+    CUDA_CALL(cudaMalloc(&(dParticles[i].weight), bytesSize));
+  }
 
   CUDA_CALL(cudaMalloc(&dCenterOfMass, sizeof(float4)));
   CUDA_CALL(cudaMalloc(&dLock, sizeof(int)));
@@ -166,20 +160,22 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
-  CUDA_CALL(cudaMemcpy(dParticles[0].posX, hParticles.posX, bytesSize, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles[0].posY, hParticles.posY, bytesSize, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles[0].posZ, hParticles.posZ, bytesSize, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles[0].velX, hParticles.velX, bytesSize, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles[0].velY, hParticles.velY, bytesSize, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles[0].velZ, hParticles.velZ, bytesSize, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dParticles[0].weight, hParticles.weight, bytesSize, cudaMemcpyHostToDevice));
+  for (unsigned i = 0; i < 2; i++) {
+    CUDA_CALL(cudaMemcpy(dParticles[i].posX, hParticles.posX, bytesSize, cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(dParticles[i].posY, hParticles.posY, bytesSize, cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(dParticles[i].posZ, hParticles.posZ, bytesSize, cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(dParticles[i].velX, hParticles.velX, bytesSize, cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(dParticles[i].velY, hParticles.velY, bytesSize, cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(dParticles[i].velZ, hParticles.velZ, bytesSize, cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(dParticles[i].weight, hParticles.weight, bytesSize, cudaMemcpyHostToDevice));
+  }
 
   /********************************************************************************************************************/
   /*                                     TODO: Clear GPU center of mass                                               */
   /********************************************************************************************************************/
 
   CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
-  CUDA_CALL(cudaMemset(dLock, 0, N * sizeof(int)));
+  CUDA_CALL(cudaMemset(dLock, 0, sizeof(int)));
 
 
   // Get CUDA device warp size
@@ -234,6 +230,15 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles[resIdx].posX, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles[resIdx].posY, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles[resIdx].posZ, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles[resIdx].velX, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles[resIdx].velY, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles[resIdx].velZ, bytesSize, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles[resIdx].weight, bytesSize, cudaMemcpyDeviceToHost));
+
+  CUDA_CALL(cudaMemcpy(hCenterOfMass, dCenterOfMass, sizeof(float4), cudaMemcpyDeviceToHost));
 
 
   // Compute reference center of mass on CPU
