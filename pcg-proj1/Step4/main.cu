@@ -255,6 +255,7 @@ int main(int argc, char **argv)
       // synchronize when CoM is calculated
       cudaEventSynchronize(eventCalculatedCoM);
 
+      // streamCopy also transfers CoM
       CUDA_CALL(cudaMemcpyAsync(hCenterOfMass, dCenterOfMass, sizeof(float4), cudaMemcpyDeviceToHost, streamCopy));
 
       // wait until all data is transferred and write it to the ouput file
@@ -265,6 +266,7 @@ int main(int argc, char **argv)
       h5Helper.writeCom(*hCenterOfMass, getRecordNum(s));
     }
 
+    // synchronize when velocity is calculated
     cudaEventSynchronize(eventCalculatedVelocity);
   }
 
@@ -334,6 +336,7 @@ int main(int argc, char **argv)
 
   CUDA_CALL(cudaEventDestroy(eventCalculatedVelocity));
   CUDA_CALL(cudaEventDestroy(eventCalculatedCoM));
+  CUDA_CALL(cudaEventDestroy(eventCopiedData));
 
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory deallocation                                           */
