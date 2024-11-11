@@ -181,6 +181,15 @@ int main(int argc, char **argv)
   /*                           TODO: Declare and create necessary CUDA streams and events                             */
   /********************************************************************************************************************/
 
+  cudaStream_t streamVelocity, streamCoM, streamCopy;
+  CUDA_CALL(cudaStreamCreate(&streamVelocity));
+  CUDA_CALL(cudaStreamCreate(&streamCoM));
+  CUDA_CALL(cudaStreamCreate(&streamCopy));
+
+  cudaEvent_t eventCalculatedVelocity, eventCalculatedCoM, eventCopiedData;
+  CUDA_CALL(cudaEventCreate(&eventCalculatedVelocity));
+  CUDA_CALL(cudaEventCreate(&eventCalculatedCoM));
+  CUDA_CALL(cudaEventCreate(&eventCopiedData));
 
   // Get CUDA device warp size
   int device;
@@ -225,9 +234,38 @@ int main(int argc, char **argv)
     /*                TODO: GPU kernels invocation with correctly set dynamic memory size and stream                  */
     /******************************************************************************************************************/
 
+    calculateVelocity<<<simGridDim, simBlockDim,
+                        sharedMemSize, streamVelocity>>>(dParticles[srcIdx], dParticles[dstIdx], N, dt);
 
+    cudaEventRecord(eventCalculatedVelocity, streamVelocity);
 
+    if (shouldWrite(s)) {
+      CUDA_CALL(cudaMemcpyAsync(hParticles.posX, dParticles[srcIdx].posX, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
+      CUDA_CALL(cudaMemcpyAsync(hParticles.posY, dParticles[srcIdx].posY, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
+      CUDA_CALL(cudaMemcpyAsync(hParticles.posZ, dParticles[srcIdx].posZ, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
+      CUDA_CALL(cudaMemcpyAsync(hParticles.velX, dParticles[srcIdx].velX, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
+      CUDA_CALL(cudaMemcpyAsync(hParticles.velY, dParticles[srcIdx].velY, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
+      CUDA_CALL(cudaMemcpyAsync(hParticles.velZ, dParticles[srcIdx].velZ, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
+      CUDA_CALL(cudaMemcpyAsync(hParticles.weight, dParticles[srcIdx].weight, bytesSize, cudaMemcpyDeviceToHost, streamCopy));
 
+      centerOfMass<<<redGridDim, redBlockDim,
+                     redSharedMemSize, streamCoM>>>(dParticles[srcIdx], dCenterOfMass, dLock, N);
+
+      cudaEventRecord(eventCalculatedCoM, streamCoM);
+      // synchronize when CoM is calculated
+      cudaEventSynchronize(eventCalculatedCoM);
+
+      CUDA_CALL(cudaMemcpyAsync(hCenterOfMass, dCenterOfMass, sizeof(float4), cudaMemcpyDeviceToHost, streamCopy));
+
+      // wait until all data is transferred and write it to the ouput file
+      CUDA_CALL(cudaMemsetAsync(dCenterOfMass, 0, sizeof(float4), streamCopy));
+      cudaEventRecord(eventCopiedData, streamCopy);
+      cudaEventSynchronize(eventCopiedData);
+      h5Helper.writeParticleData(getRecordNum(s));
+      h5Helper.writeCom(*hCenterOfMass, getRecordNum(s));
+    }
+
+    cudaEventSynchronize(eventCalculatedVelocity);
   }
 
   const unsigned resIdx = steps % 2;    // result particles index
@@ -237,7 +275,11 @@ int main(int argc, char **argv)
   /*                              additional synchronization and set appropriate stream                               */
   /********************************************************************************************************************/
 
+  // Wait for all CUDA kernels to finish
+  CUDA_CALL(cudaDeviceSynchronize());
 
+  centerOfMass<<<redGridDim, redBlockDim,
+                  redSharedMemSize, streamCoM>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // Wait for all CUDA kernels to finish
   CUDA_CALL(cudaDeviceSynchronize());
@@ -286,6 +328,12 @@ int main(int argc, char **argv)
   /*                                  TODO: CUDA streams and events destruction                                       */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaStreamDestroy(streamVelocity));
+  CUDA_CALL(cudaStreamDestroy(streamCoM));
+  CUDA_CALL(cudaStreamDestroy(streamCopy));
+
+  CUDA_CALL(cudaEventDestroy(eventCalculatedVelocity));
+  CUDA_CALL(cudaEventDestroy(eventCalculatedCoM));
 
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory deallocation                                           */
