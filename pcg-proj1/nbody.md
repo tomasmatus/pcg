@@ -1,5 +1,5 @@
 # PCG projekt 1
-- autor: xlogin00
+- autor: xmatus37
 
 ## Měření výkonu (čas / 100 kroků simulace)
 
@@ -30,14 +30,14 @@
 ### Závěrečné
 |    N   |  CPU [s] |   GPU [s] | Zrychlení | Propustnost [GiB/s] | Výkon [GFLOPS] |
 |:------:|:--------:|:---------:|:---------:|:-------------------:|:--------------:|
-|   1024 |   1.0928 |  0.041675 |           |                     |                |
-|   2048 |   0.5958 |  0.080734 |           |                     |                |
-|   4096 |   0.6652 |  0.158779 |           |                     |                |
-|   8192 |   1.6599 |  0.314854 |           |                     |                |
-|  16384 |   3.3655 |  0.627044 |           |                     |                |
-|  32768 |  12.7233 |  1.251826 |           |                     |                |
-|  65536 |  48.9732 |  4.209958 |           |                     |                |
-| 131072 | 195.9965 | 12.539515 |           |                     |                |
+|   1024 |   1.0928 |  0.041675 |     26.22 |             0.08114 |        138.224 |
+|   2048 |   0.5958 |  0.080734 |      7.38 |             0.07197 |        280.090 |
+|   4096 |   0.6652 |  0.158779 |      4.19 |             0.06873 |        564.184 |
+|   8192 |   1.6599 |  0.314854 |      5.27 |             0.06567 |      1 131.507 |
+|  16384 |   3.3655 |  0.627044 |      5.37 |             0.06415 |      2 267.253 |
+|  32768 |  12.7233 |  1.251826 |     10.16 |             0.06339 |      4 538.837 |
+|  65536 |  48.9732 |  4.209958 |     11.63 |             0.03743 |      5 387.500 |
+| 131072 | 195.9965 | 12.539515 |     15.63 |             0.02499 |      7 221.229 |
 
 ## Otázky
 
@@ -79,4 +79,18 @@ load operací z globální paměti a SM procesory čekají na data kratší dobu
 ### Krok 5: Měření výkonu
 **Jakých jste dosáhli výsledků?**
 
+Dosáhl jsem celkem slušného zrychlení v porovnání s referenční implementací.
+Nicméně dle profilingu je využití SM procesorů na 60% v případě vstupu
+o velikosti `N=131072`, takže jsem ještě nedokázal vytěžit maximum z GPU
+a rychlost by se dala vylepšit.
+
+S větší velikostí vstupu od velikosti `N=32468` dosahuje GPU vyššího
+zrychlení a s růstem počtu vstupních dat se toto zrychlení zlepšuje
+v porovnání s CPU.
+
 **Lze v datech pozorovat nějaké anomálie?**
+
+Případá mi zvláštní, že výpočet na GPU pro `N=1024` dosahuje zrychlení 26.22x.
+Očekával bych, že kvůli potřebě kopírovat data na GPU, spouštět kernel a kopírovat
+data zpět z GPU na CPU vnese dostatečně vysoký overhead kvůli kterému by nebylo
+výhodné takto malý výpočet provádět na GPU.
