@@ -33,10 +33,11 @@ constexpr float COLLISION_DISTANCE = 0.01f;
  */
 Particles::Particles(const unsigned N)
 {
+  this->N = N;
   posWei = new float4[N];
   vel = new float3[N];
 
-  #pragma acc enter data copyin(this[0:1]);
+  #pragma acc enter data copyin(this[0:1])
   #pragma acc enter data create(posWei[0:N])
   #pragma acc enter data create(vel[0:N])
 }
@@ -57,8 +58,8 @@ Particles::~Particles()
  */
 void Particles::copyToDevice()
 {
-  #pragma acc update device(posWei[0:N]);
-  #pragma acc update device(vel[0:N]);
+  #pragma acc update device(posWei[0:N])
+  #pragma acc update device(vel[0:N])
 }
 
 /**
@@ -76,6 +77,7 @@ void Particles::copyToHost()
  */
 Velocities::Velocities(const unsigned N)
 {
+  this->N = N;
   vel = new float3[N];
 
   #pragma acc enter data copyin(this[0:1])
@@ -123,15 +125,34 @@ void calculateGravitationVelocity(Particles& p, Velocities& tmpVel, const unsign
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
+  #pragma acc parallel loop present(p, tmpVel)
   for (unsigned i = 0u; i < N; i++) {
-    float3 newVel{};
-    float4 curPos = p.posWei[i];
-    float3 curVel = p.vel[i];
+    float3 newVel{ 0 };
+    const float3 curPos = { p.posWei[i].x, p.posWei[i].y, p.posWei[i].z };
+    const float curWeight = p.posWei[i].w;
 
-    for (unsigned j = 0u; i < N; i++) {
-      float4 otherPos = p.posWei[j];
-      float3 otherVel = p.vel[j];
+    #pragma acc loop
+    for (unsigned j = 0u; j < N; j++) {
+      const float3 otherPos = { p.posWei[j].x, p.posWei[j].y, p.posWei[j].z };
+      const float otherWeight = p.posWei[j].w;
+
+      const float3 delta = otherPos - curPos;
+      const float3 delta2 = delta * delta;
+
+      const float r2 = delta2.x + delta2.y + delta2.z;
+      const float r = std::sqrt(r2) + std::numeric_limits<float>::min();
+
+      const float f = G * curWeight * otherWeight / r2 + std::numeric_limits<float>::min();
+
+      // newVel.x += (r > COLLISION_DISTANCE) ? delta.x / r * f : 0.0f;
+      // newVel.y += (r > COLLISION_DISTANCE) ? delta.y / r * f : 0.0f;
+      // newVel.z += (r > COLLISION_DISTANCE) ? delta.z / r * f : 0.0f;
+      newVel += (r > COLLISION_DISTANCE) ? delta / r * f : 0.0f;
     }
+
+    newVel *= dt / curWeight;
+
+    tmpVel.vel[i] = newVel;
   }
 
 }// end of calculate_gravitation_velocity
@@ -151,7 +172,33 @@ void calculateCollisionVelocity(Particles& p, Velocities& tmpVel, const unsigned
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
+  #pragma acc parallel loop present(p, tmpVel)
+  for (unsigned i = 0u; i < N; ++i) {
+    float3 newVel{ 0 };
+    const float3 curPos = { p.posWei[i].x, p.posWei[i].y, p.posWei[i].z };
+    const float3 curVel = p.vel[i];
+    const float curWeight = p.posWei[i].w;
 
+    #pragma acc loop
+    for (unsigned j = 0u; j < N; j++) {
+      const float3 otherPos = { p.posWei[j].x, p.posWei[j].y, p.posWei[j].z };
+      const float3 otherVel = p.vel[j];
+      const float otherWeight = p.posWei[j].w;
+
+      const float3 delta = otherPos - curPos;
+      const float3 delta2 = delta * delta;
+
+      const float r2 = delta2.x + delta2.y + delta2.z;
+      const float r = std::sqrt(r2);
+
+      newVel += (r > 0.0f && r < COLLISION_DISTANCE)
+        ? (((curWeight * curVel.y - otherWeight * curVel + 2.0f * otherWeight * otherVel) / (curWeight + otherWeight)) - curVel)
+        : 0.0f;
+    }
+
+
+    tmpVel.vel[i] += newVel;
+  }
 }// end of calculate_collision_velocity
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -169,6 +216,21 @@ void updateParticles(Particles& p, Velocities& tmpVel, const unsigned N, float d
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
+  #pragma acc parallel loop present(p, tmpVel)
+  for (unsigned i = 0u; i < N; i++) {
+    float3 curPos = { p.posWei[i].x, p.posWei[i].y, p.posWei[i].z };
+    float3 curVel = p.vel[i];
+
+    const float3 newVel = tmpVel.vel[i];
+
+    curVel += newVel;
+    curPos += curVel * dt;
+
+    p.vel[i] = curVel;
+    p.posWei[i].x = curPos.x;
+    p.posWei[i].y = curPos.y;
+    p.posWei[i].z = curPos.z;
+  }
 
 }// end of update_particle
 //----------------------------------------------------------------------------------------------------------------------

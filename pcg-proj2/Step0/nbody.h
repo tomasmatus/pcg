@@ -62,6 +62,8 @@ struct Particles
   /* TODO: Particles data structure optimized for use on GPU. Use float3 and float4 structures defined in file Vec.h  */
   /********************************************************************************************************************/
 
+  unsigned N;
+
   // positions X, Y, Z and last is weight
   float4* posWei;
   // velocities X, Y, Z
@@ -110,6 +112,8 @@ struct Velocities
   /********************************************************************************************************************/
   /* TODO: Velocities data structure optimized for use on GPU. Use float3 and float4 structures defined in file Vec.h */
   /********************************************************************************************************************/
+
+  unsigned N;
 
   // Velocities X, Y, Z
   float3* vel;
