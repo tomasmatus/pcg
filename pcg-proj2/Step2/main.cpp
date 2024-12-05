@@ -1,10 +1,10 @@
 /**
  * @file      main.cpp
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 2
  *
