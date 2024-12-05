@@ -1,10 +1,10 @@
 /**
  * @file      nbody.cpp
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 2
  *
@@ -34,13 +34,24 @@ constexpr float COLLISION_DISTANCE = 0.01f;
  */
 Particles::Particles(const unsigned N)
 {
+  this->N = N;
+  posWei = new float4[N];
+  vel = new float3[N];
 
+  #pragma acc enter data copyin(this[0:1])
+  #pragma acc enter data create(posWei[0:N])
+  #pragma acc enter data create(vel[0:N])
 }
 
 /// @brief Destructor
 Particles::~Particles()
 {
+  #pragma acc exit data delete(posWei[0:N])
+  #pragma acc exit data delete(vel[0:N])
+  #pragma acc exit data delete(this[0:1])
 
+  delete[] posWei;
+  delete[] vel;
 }
 
 /**
@@ -48,7 +59,8 @@ Particles::~Particles()
  */
 void Particles::copyToDevice()
 {
-
+  #pragma acc update device(posWei[0:N])
+  #pragma acc update device(vel[0:N])
 }
 
 /**
@@ -56,7 +68,8 @@ void Particles::copyToDevice()
  */
 void Particles::copyToHost()
 {
-
+  #pragma acc update host(posWei[0:N])
+  #pragma acc update host(vel[0:N])
 }
 
 /*********************************************************************************************************************/
@@ -75,7 +88,44 @@ void calculateVelocity(Particles& pIn, Particles& pOut, const unsigned N, float 
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
+  #pragma acc parallel loop present(pIn, pOut)
+  for (unsigned i = 0u; i < N; i++) {
+    float3 newGravityVel{ 0 };
+    float3 newCollisionVel{ 0 };
+    const float3 curPos = { pIn.posWei[i].x, pIn.posWei[i].y, pIn.posWei[i].z };
+    const float3 curVel = pIn.vel[i];
+    const float curWeight = pIn.posWei[i].w;
 
+    #pragma acc loop
+    for (unsigned j = 0u; j < N; j++) {
+      const float3 otherPos = { pIn.posWei[j].x, pIn.posWei[j].y, pIn.posWei[j].z };
+      const float3 otherVel = pIn.vel[j];
+      const float otherWeight = pIn.posWei[j].w;
+
+      const float3 delta = otherPos - curPos;
+      const float3 delta2 = delta * delta;
+
+      const float r2 = delta2.x + delta2.y + delta2.z;
+      const float r = std::sqrt(r2);
+
+      const float f = G * curWeight * otherWeight / r2;
+
+      newGravityVel += (r > COLLISION_DISTANCE) ? delta / r * f : 0.0f;
+      newCollisionVel += (r > 0.0f && r < COLLISION_DISTANCE)
+        ? (((curWeight * curVel - otherWeight * curVel + 2.0f * otherWeight * otherVel) / (curWeight + otherWeight)) - curVel)
+        : 0.0f;
+    }
+
+    newGravityVel *= dt / curWeight;
+
+    const float3 stepVel = curVel + newGravityVel + newCollisionVel;
+    const float3 stepPos = curPos + stepVel * dt;
+
+    pOut.vel[i] = stepVel;
+    pOut.posWei[i].x = stepPos.x;
+    pOut.posWei[i].y = stepPos.y;
+    pOut.posWei[i].z = stepPos.z;
+  }
 }// end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
 

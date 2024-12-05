@@ -1,10 +1,10 @@
 /**
  * @file      main.cpp
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 2
  *
@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdio>
 #include <chrono>
+#include <cstring>
 #include <string>
 
 #include "nbody.h"
@@ -66,13 +67,13 @@ int main(int argc, char **argv)
    *       Data pointer       consecutive elements        element in FLOATS,
    *                          in FLOATS, not bytes            not bytes
   */
-  MemDesc md(nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
+  MemDesc md(&(particles[0].posWei[0].x),              4,                          0,
+             &(particles[0].posWei[0].y),              4,                          0,
+             &(particles[0].posWei[0].z),              4,                          0,
+             &(particles[0].vel[0].x),                 3,                          0,
+             &(particles[0].vel[0].y),                 3,                          0,
+             &(particles[0].vel[0].z),                 3,                          0,
+             &(particles[0].posWei[0].w),              4,                          0,
              N,
              recordsCount);
 
@@ -94,7 +95,11 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
+  std::memcpy(particles[1].posWei, particles[0].posWei, sizeof(float4) * N);
+  std::memcpy(particles[1].vel, particles[0].vel, sizeof(float3) * N);
 
+  particles[0].copyToDevice();
+  particles[1].copyToDevice();
   
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
@@ -108,7 +113,7 @@ int main(int argc, char **argv)
     /*                                        TODO: GPU computation                                                   */
     /******************************************************************************************************************/
 
-
+    calculateVelocity(particles[srcIdx], particles[dstIdx], N, dt);
   }
 
   const unsigned resIdx = steps % 2;    // result particles index
@@ -124,7 +129,7 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
 
-
+  particles[resIdx].copyToHost();
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
