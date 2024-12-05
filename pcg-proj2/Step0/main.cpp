@@ -1,10 +1,10 @@
 /**
  * @file      main.cpp
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 2
  *
@@ -16,7 +16,6 @@
 #include <cmath>
 #include <cstdio>
 #include <chrono>
-#include <cstring>
 #include <string>
 
 #include "nbody.h"
@@ -95,8 +94,6 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
-
-  std::memset(tmpVelocities.vel, 0, sizeof(float3) * N);
 
   particles.copyToDevice();
   tmpVelocities.copyToDevice();
