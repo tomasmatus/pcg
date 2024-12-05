@@ -125,13 +125,13 @@ void calculateGravitationVelocity(Particles& p, Velocities& tmpVel, const unsign
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
-  #pragma acc parallel loop present(p, tmpVel)
+  #pragma acc parallel loop present(p, tmpVel) gang
   for (unsigned i = 0u; i < N; i++) {
     float3 newVel{ 0 };
     const float3 curPos = { p.posWei[i].x, p.posWei[i].y, p.posWei[i].z };
     const float curWeight = p.posWei[i].w;
 
-    #pragma acc loop
+    #pragma acc loop vector
     for (unsigned j = 0u; j < N; j++) {
       const float3 otherPos = { p.posWei[j].x, p.posWei[j].y, p.posWei[j].z };
       const float otherWeight = p.posWei[j].w;
@@ -144,9 +144,6 @@ void calculateGravitationVelocity(Particles& p, Velocities& tmpVel, const unsign
 
       const float f = G * curWeight * otherWeight / r2 + std::numeric_limits<float>::min();
 
-      // newVel.x += (r > COLLISION_DISTANCE) ? delta.x / r * f : 0.0f;
-      // newVel.y += (r > COLLISION_DISTANCE) ? delta.y / r * f : 0.0f;
-      // newVel.z += (r > COLLISION_DISTANCE) ? delta.z / r * f : 0.0f;
       newVel += (r > COLLISION_DISTANCE) ? delta / r * f : 0.0f;
     }
 
@@ -172,14 +169,14 @@ void calculateCollisionVelocity(Particles& p, Velocities& tmpVel, const unsigned
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
-  #pragma acc parallel loop present(p, tmpVel)
+  #pragma acc parallel loop present(p, tmpVel) gang
   for (unsigned i = 0u; i < N; ++i) {
     float3 newVel{ 0 };
     const float3 curPos = { p.posWei[i].x, p.posWei[i].y, p.posWei[i].z };
     const float3 curVel = p.vel[i];
     const float curWeight = p.posWei[i].w;
 
-    #pragma acc loop
+    #pragma acc loop vector
     for (unsigned j = 0u; j < N; j++) {
       const float3 otherPos = { p.posWei[j].x, p.posWei[j].y, p.posWei[j].z };
       const float3 otherVel = p.vel[j];
