@@ -140,9 +140,9 @@ void calculateGravitationVelocity(Particles& p, Velocities& tmpVel, const unsign
       const float3 delta2 = delta * delta;
 
       const float r2 = delta2.x + delta2.y + delta2.z;
-      const float r = std::sqrt(r2) + std::numeric_limits<float>::min();
+      const float r = std::sqrt(r2);
 
-      const float f = G * curWeight * otherWeight / r2 + std::numeric_limits<float>::min();
+      const float f = G * curWeight * otherWeight / r2;
 
       newVel += (r > COLLISION_DISTANCE) ? delta / r * f : 0.0f;
     }
@@ -170,7 +170,7 @@ void calculateCollisionVelocity(Particles& p, Velocities& tmpVel, const unsigned
   /*******************************************************************************************************************/
 
   #pragma acc parallel loop present(p, tmpVel) gang
-  for (unsigned i = 0u; i < N; ++i) {
+  for (unsigned i = 0u; i < N; i++) {
     float3 newVel{ 0 };
     const float3 curPos = { p.posWei[i].x, p.posWei[i].y, p.posWei[i].z };
     const float3 curVel = p.vel[i];
@@ -189,7 +189,7 @@ void calculateCollisionVelocity(Particles& p, Velocities& tmpVel, const unsigned
       const float r = std::sqrt(r2);
 
       newVel += (r > 0.0f && r < COLLISION_DISTANCE)
-        ? (((curWeight * curVel.y - otherWeight * curVel + 2.0f * otherWeight * otherVel) / (curWeight + otherWeight)) - curVel)
+        ? (((curWeight * curVel - otherWeight * curVel + 2.0f * otherWeight * otherVel) / (curWeight + otherWeight)) - curVel)
         : 0.0f;
     }
 
