@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdio>
 #include <chrono>
+#include <cstring>
 #include <string>
 
 #include "nbody.h"
@@ -66,13 +67,13 @@ int main(int argc, char **argv)
    *       Data pointer       consecutive elements        element in FLOATS,
    *                          in FLOATS, not bytes            not bytes
   */
-  MemDesc md(nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
+  MemDesc md(&(particles[0].posWei[0].x),              4,                          0,
+             &(particles[0].posWei[0].y),              4,                          0,
+             &(particles[0].posWei[0].z),              4,                          0,
+             &(particles[0].vel[0].x),                 3,                          0,
+             &(particles[0].vel[0].y),                 3,                          0,
+             &(particles[0].vel[0].z),                 3,                          0,
+             &(particles[0].posWei[0].w),              4,                          0,
              N,
              recordsCount);
 
@@ -95,6 +96,11 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   float4* comBuffer = {};
 
+  // round N to the nearest even number
+  const unsigned maxN = (N % 2 == 0) ? N : N + 1;
+  comBuffer = new float4[maxN];
+  #pragma acc enter data create(comBuffer[0:N])
+
   /********************************************************************************************************************/
   /*                                      TODO: Set openacc stream ids                                                */
   /********************************************************************************************************************/
@@ -105,6 +111,11 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
+  std::memcpy(particles[1].posWei, particles[0].posWei, sizeof(float4) * N);
+  std::memcpy(particles[1].vel, particles[0].vel, sizeof(float3) * N);
+
+  particles[0].copyToDevice();
+  particles[1].copyToDevice();
 
 
   // Lambda for checking if we should write current step to the file
@@ -148,7 +159,7 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
 
 
-  const float4 comFinal = {};
+  float4 comFinal = {};
 
   // End measurement
   const auto end = std::chrono::steady_clock::now();
@@ -163,7 +174,9 @@ int main(int argc, char **argv)
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
 
-
+  particles[resIdx].copyToHost();
+  #pragma acc update host(comBuffer[0:1])
+  comFinal = comBuffer[0];
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
@@ -188,6 +201,7 @@ int main(int argc, char **argv)
   /*                                TODO: Free center of mass buffer memory                                           */
   /********************************************************************************************************************/
 
-
+  #pragma acc exit data delete(comBuffer[0:maxN])
+  delete[] comBuffer;
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------

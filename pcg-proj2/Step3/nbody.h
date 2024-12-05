@@ -1,10 +1,10 @@
 /**
  * @file      nbody.h
  *
- * @author    Name Surname \n
+ * @author    Tomáš Matuš \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xmatus37@fit.vutbr.cz
  *
  * @brief     PCG Assignment 2
  *
@@ -62,7 +62,12 @@ struct Particles
   /* TODO: Particles data structure optimized for use on GPU. Use float3 and float4 structures defined in file Vec.h  */
   /********************************************************************************************************************/
 
+  unsigned N;
 
+  // positions X, Y, Z and last is weight
+  float4* posWei;
+  // velocities X, Y, Z
+  float3* vel;
 };
 
 /**
