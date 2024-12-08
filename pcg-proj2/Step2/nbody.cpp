@@ -153,7 +153,6 @@ void centerOfMass(Particles& p, float4* comBuffer, const unsigned N)
 
   comBuffer[N] = float4{ 0 };
 
-  #pragma acc loop seq
   for (unsigned stride = maxN / 2; stride >= 1; stride /= 2) {
     #pragma acc parallel loop gang present(p, comBuffer)
     for (unsigned i = 0u; i < stride; i++) {
