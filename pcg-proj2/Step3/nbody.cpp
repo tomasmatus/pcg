@@ -57,19 +57,19 @@ Particles::~Particles()
 /**
  * @brief Copy particles from host to device
  */
-void Particles::copyToDevice()
+void Particles::copyToDevice(const unsigned streamID)
 {
-  #pragma acc update device(posWei[0:N])
-  #pragma acc update device(vel[0:N])
+  #pragma acc update device(posWei[0:N]) async(streamID)
+  #pragma acc update device(vel[0:N]) async(streamID)
 }
 
 /**
  * @brief Copy particles from device to host
  */
-void Particles::copyToHost()
+void Particles::copyToHost(const unsigned streamID)
 {
-  #pragma acc update host(posWei[0:N])
-  #pragma acc update host(vel[0:N])
+  #pragma acc update host(posWei[0:N]) async(streamID)
+  #pragma acc update host(vel[0:N]) async(streamID)
 }
 
 /*********************************************************************************************************************/
@@ -81,17 +81,17 @@ void Particles::copyToHost()
  * @param N    - Number of particles
  * @param dt   - Size of the time step
  */
-void calculateVelocity(Particles& pIn, Particles& pOut, const unsigned N, float dt)
+void calculateVelocity(Particles& pIn, Particles& pOut, const unsigned N, float dt, const unsigned streamID)
 {
   /*******************************************************************************************************************/
   /*                    TODO: Calculate gravitation velocity, see reference CPU version,                             */
   /*                            you can use overloaded operators defined in Vec.h                                    */
   /*******************************************************************************************************************/
 
-  #pragma acc parallel loop present(pIn, pOut)
+  #pragma acc parallel loop present(pIn, pOut) async(streamID)
   for (unsigned i = 0u; i < N; i++) {
-    float3 newGravityVel{ 0 };
-    float3 newCollisionVel{ 0 };
+    float3 newGravityVel{ 0.0f };
+    float3 newCollisionVel{ 0.0f };
     const float3 curPos = { pIn.posWei[i].x, pIn.posWei[i].y, pIn.posWei[i].z };
     const float3 curVel = pIn.vel[i];
     const float curWeight = pIn.posWei[i].w;
@@ -135,7 +135,7 @@ void calculateVelocity(Particles& pIn, Particles& pOut, const unsigned N, float 
  * @param comBuffer - pointer to a center of mass buffer
  * @param N         - Number of particles
  */
-void centerOfMass(Particles& p, float4* comBuffer, const unsigned N)
+void centerOfMass(Particles& p, float4* comBuffer, const unsigned N, const unsigned streamID)
 {
   /********************************************************************************************************************/
   /*                 TODO: Calculate partiles center of mass inside center of mass buffer                             */
@@ -144,16 +144,15 @@ void centerOfMass(Particles& p, float4* comBuffer, const unsigned N)
   // round N to the nearest even number
   const unsigned maxN = (N % 2 == 0) ? N : N + 1;
 
-  #pragma acc parallel loop gang present(p, comBuffer)
+  #pragma acc parallel loop gang present(p, comBuffer) async(streamID)
   for (unsigned i = 0u; i < maxN; i++) {
     comBuffer[i] = (i < N)
       ? p.posWei[i]
       : float4{ 0.0f };
   }
 
-  comBuffer[N] = float4{ 0 };
+  comBuffer[N] = float4{ 0.0f };
 
-  #pragma acc loop seq
   for (unsigned stride = maxN / 2; stride >= 1; stride /= 2) {
     #pragma acc parallel loop gang present(p, comBuffer)
     for (unsigned i = 0u; i < stride; i++) {

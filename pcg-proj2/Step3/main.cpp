@@ -105,7 +105,11 @@ int main(int argc, char **argv)
   /*                                      TODO: Set openacc stream ids                                                */
   /********************************************************************************************************************/
 
-  
+  const unsigned streamDefault = 0;
+  const unsigned streamVelocity = 1;
+  const unsigned streamCoM = 2;
+  const unsigned streamCopyParticles = 3;
+  const unsigned streamCopyCoM = 4;
 
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
@@ -139,6 +143,8 @@ int main(int argc, char **argv)
   /*                           if (shouldWrite(s, writeFreq)) { ... }                                                 */
   /*                        Use getRecordNum lambda to get the record number.                                         */
   /********************************************************************************************************************/
+  #pragma acc wait(streamDefault)
+
   for (unsigned s = 0u; s < steps; ++s)
   {
     const unsigned srcIdx = s % 2;        // source particles index
@@ -148,7 +154,26 @@ int main(int argc, char **argv)
     /*                                        TODO: GPU computation                                                   */
     /******************************************************************************************************************/
 
+    if (shouldWrite(s)) {
+      #pragma acc wait(streamVelocity)
+      centerOfMass(particles[srcIdx], comBuffer, N, streamCoM);
 
+      particles[srcIdx].copyToHost(streamCopyParticles);
+
+      #pragma acc wait(streamCoM)
+      #pragma acc update host(comBuffer[0:1]) async(streamCopyCoM)
+
+      #pragma acc wait(streamCopyParticles, streamCopyCoM)
+      // h5Helper only uses particles[0]
+      if (srcIdx != 0) {
+        std::memcpy(particles[0].posWei, particles[1].posWei, sizeof(float4) * N);
+        std::memcpy(particles[0].vel, particles[1].vel, sizeof(float3) * N);
+      }
+      h5Helper.writeParticleData(getRecordNum(s));
+      h5Helper.writeCom(comBuffer[0], getRecordNum(s));
+    }
+
+    calculateVelocity(particles[srcIdx], particles[dstIdx], N, dt, streamVelocity);
   }
 
   const unsigned resIdx = steps % 2;    // result particles index
@@ -158,6 +183,7 @@ int main(int argc, char **argv)
   /*                              additional synchronization and set appropriate stream                               */
   /********************************************************************************************************************/
 
+  centerOfMass(particles[resIdx], comBuffer, N);
 
   float4 comFinal = {};
 

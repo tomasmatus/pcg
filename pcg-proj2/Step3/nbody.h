@@ -51,12 +51,12 @@ struct Particles
   /**
    * @brief Copy particles from host to device
    */
-  void copyToDevice();
+  void copyToDevice(const unsigned streamID = 0);
 
   /**
    * @brief Copy particles from device to host
    */
-  void copyToHost();
+  void copyToHost(const unsigned streamID = 0);
 
   /********************************************************************************************************************/
   /* TODO: Particles data structure optimized for use on GPU. Use float3 and float4 structures defined in file Vec.h  */
@@ -80,7 +80,8 @@ struct Particles
 void calculateVelocity(Particles&     pIn,
                        Particles&     pOut,
                        const unsigned N,
-                       float          dt);
+                       float          dt,
+                       const unsigned streamID = 0);
 
 /**
  * Calculate particles center of mass
@@ -90,7 +91,8 @@ void calculateVelocity(Particles&     pIn,
  */
 void centerOfMass(Particles&     p,
                   float4*        comBuffer,
-                  const unsigned N);
+                  const unsigned N,
+                  const unsigned streamID = 0);
 
 /**
  * CPU implementation of the Center of Mass calculation
